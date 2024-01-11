@@ -1,6 +1,9 @@
 use std::io::Write;
 use rand::Rng;
 use rand::seq::SliceRandom;
+use std::fs;
+use std::io;
+use std::path;
 
 enum Campos{
     Nombre,
@@ -13,37 +16,25 @@ enum Campos{
 fn main() {
     let mut ruta = String::new();
     print!("Introduce la ruta donde estan tus archivos sql: ");
-    std::io::stdout().flush().expect("Print failed");
-    std::io::stdin().read_line(&mut ruta).unwrap();
-    let ruta = ruta.trim();
+    io::stdout().flush().expect("Print failed");
+    io::stdin().read_line(&mut ruta).unwrap();
+    let mut ruta = ruta.trim();
 
-    if !std::path::Path::new(&ruta).exists() {
+    if ruta == "." { ruta = "./" }
+
+    if !path::Path::new(&ruta).exists() {
         println!("The directory does not exist.");
         std::process::exit(1);
     }
-    println!("{:?}", std::fs::metadata(&ruta));
-    // if !std::fs::metadata(&ruta).unwrap().permissions().readonly() {
-    //     println!("The program does not have the necessary permissions to read the directory.");
-    //     std::process::exit(1);
-    // }
 
-    let ruta = ruta.trim().to_owned();
 
     let mut sqlfiles = Vec::new();
-    match std::fs::read_dir(ruta.clone()) {
-        Ok(entries) => {
-            for entry in entries {
-                let entry = entry.unwrap();
-                let path = entry.path();
-                if path.is_file() {
-                    if path.extension().unwrap() == "sql" {
-                        sqlfiles.push(path.file_name().unwrap().to_str().unwrap().to_owned());
-                    }
-                }
-            }
-        },
-        Err(e) => {
-            println!("Failed to read directory: {}", e);
+    let paths = fs::read_dir(&ruta).unwrap();
+    for path in paths {
+        let path = path.unwrap().path();
+        let path = path.to_str().unwrap();
+        if path.ends_with(".sql") || path.ends_with(".ddl") {
+            sqlfiles.push(path.to_owned());
         }
     }
 
@@ -53,8 +44,8 @@ fn main() {
 
     let mut archivo = String::new();
     print!("Introduce el numero del archivo que deseas añadir datos: ");
-    std::io::stdout().flush().expect("Print failed");
-    std::io::stdin().read_line(&mut archivo).unwrap();
+    io::stdout().flush().expect("Print failed");
+    io::stdin().read_line(&mut archivo).unwrap();
 
     let archivo = archivo.trim().parse::<usize>().unwrap();
     if archivo < 1 || archivo > sqlfiles.len() {
@@ -67,20 +58,20 @@ fn main() {
 
     let mut tabla = String::new();
     print!("Introduce el nombre de la tabla: ");
-    std::io::stdout().flush().expect("Print failed");
-    std::io::stdin().read_line(&mut tabla).unwrap();
+    io::stdout().flush().expect("Print failed");
+    io::stdin().read_line(&mut tabla).unwrap();
 
     let mut necesidades = String::new();
     print!("Introduce que datos necesitas introducir (ej: \"nombre, dni, fecha, numero, telefono\"): ");
-    std::io::stdout().flush().expect("Print failed");
-    std::io::stdin().read_line(&mut necesidades).unwrap();
+    io::stdout().flush().expect("Print failed");
+    io::stdin().read_line(&mut necesidades).unwrap();
 
 
 
     let mut cantidad = String::new();
     print!("Cuantos inserts desead poner: ");
-    std::io::stdout().flush().expect("Print failed");
-    std::io::stdin().read_line(&mut cantidad).unwrap();
+    io::stdout().flush().expect("Print failed");
+    io::stdin().read_line(&mut cantidad).unwrap();
 
     let cantidad = cantidad.trim().parse::<usize>().unwrap();
 
@@ -91,14 +82,14 @@ fn main() {
 
     let mut contador = 0;
     while inserts.len() < cantidad {
-        let insert = format!("\nINSERT INTO {} VALUES ({})", tabla, get_random_string(&campos));
+        let insert = format!("\nINSERT INTO {} VALUES ({})", tabla.trim(), get_random_string(&campos));
         if !inserts.contains(&insert) {
             inserts.push(insert);
         }
         contador = contador + 1;
     }
 
-    let mut f = std::fs::OpenOptions::new().append(true).open(ruta.to_owned() + "/" + &*archivo).unwrap();
+    let mut f = fs::OpenOptions::new().append(true).open(ruta.to_owned() + "/" + &*archivo).unwrap();
     for insert in inserts {
         f.write_all(insert.as_bytes()).unwrap();
     }
@@ -108,12 +99,12 @@ fn main() {
 fn get_campos(necesidades: &Vec<&str>) -> Vec<Campos> {
     let mut campos = Vec::new();
     for i in necesidades {
-        match i {
-            &"nombre" => { campos.push(Campos::Nombre)}
-            &"telefono" => { campos.push(Campos::Telefono)}
-            &"dni" => { campos.push(Campos::DNI)}
-            &"fecha" => { campos.push(Campos::Fecha)}
-            &"numero" => { campos.push(Campos::Numero)}
+        match i.trim() {
+            "nombre" | "nom" => { campos.push(Campos::Nombre)}
+            "telefono" | "tlf" => { campos.push(Campos::Telefono)}
+            "dni" => { campos.push(Campos::DNI)}
+            "fecha" | "f" => { campos.push(Campos::Fecha)}
+            "numero" | "num"=> { campos.push(Campos::Numero)}
             _ => {println!("El campo {} no es valido", i); std::process::exit(1)}
         }
     }
@@ -140,12 +131,17 @@ fn get_random_string(necesidades: &Vec<Campos>) -> String {
         }
     }
     let mut resutl = String::new();
-    for i in res{
+    for i in &res{
         resutl.push('\"');
         for c in i.chars() {
             resutl.push(c);
         }
         resutl.push('\"');
+        if i.to_string() != res[res.len() - 1].to_string() {
+            resutl.push(',');
+            resutl.push(' ');
+        }
+
     }
 
     return resutl;
