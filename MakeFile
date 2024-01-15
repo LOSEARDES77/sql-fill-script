@@ -1,0 +1,15 @@
+all:
+	@if [[ "$EUID" = 0 ]]; then echo -en "Avoid running $(MAKE) all as sudo.\n"; fi
+	cargo build --release --target x86_64-unknown-linux-gnu
+	cargo build --release --target x86_64-pc-windows-gnu
+
+release:
+	cargo build --release --target x86_64-unknown-linux-gnu
+	cargo build --release --target x86_64-pc-windows-gnu
+
+debug:
+	cargo build --target x86_64-unknown-linux-gnu
+	cargo build --target x86_64-pc-windows-gnu
+
+clear:
+	rm -rf target
